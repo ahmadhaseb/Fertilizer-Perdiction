@@ -1,20 +1,61 @@
 import streamlit as st
 import pickle
 import numpy as np
+import pandas as pd
 
-#Upload Model
-with open("fertilizer_model.pkl", 'rb') as f:
-    data = pickle.load(f)
+# 1. Model load karne ka function
+@st.cache_resource
+def load_model():
+    with open('fertilizer_model.pkl', 'rb') as f:
+        data = pickle.load(f)
+    if isinstance(data, dict) and 'model' in data:
+        return data['model']
+    return data
 
-model = data['model']
-le_soil = data['le_soil']
-le_crop = data['le_crop']
-le_fert = data['le_fert']
+try:
+    model = load_model()
+except Exception as e:
+    st.error(f"Model load karne mein masla aya: {e}")
+
+# Page styling
 st.set_page_config(page_title="Fertilizer Prediction", page_icon="🌾", layout="centered")
 st.title("🌾 Fertilizer Prediction System")
-st.write("Soil aur Crop ki details enter karein taake sahi khad (fertilizer) ka pata lagaya ja sake.")
+st.write("Mitti aur fasal ki details enter karein taake sahi khad (fertilizer) ka pata chal sake.")
 
-#User Inpur Fields
+# 2. Mappings
+soil_mapping = {
+    "Black (Kali Mitti)": 0,
+    "Clayey (Chikni Mitti)": 1,
+    "Loamy (Zarkhez / Meera Mitti)": 2,
+    "Red (Surkh Mitti)": 3,
+    "Sandy (Retili Mitti)": 4
+}
+
+crop_mapping = {
+    "Barley (Jao)": 0,
+    "Cotton (Kapaas)": 1,
+    "Groundnuts (Moongphali)": 2,
+    "Maize (Makai)": 3,
+    "Millets (Bajra)": 4,
+    "Oil seeds (Teel Dar Ajnas)": 5,
+    "Paddy (Chawal / Dhan)": 6,
+    "Pulses (Dalein)": 7,
+    "Sugarcane (Ganna)": 8,
+    "Tobacco (Tambaku)": 9,
+    "Wheat (Gandum)": 10
+}
+
+fertilizer_mapping = {
+    0: "10-26-26 (NPK)",
+    1: "28-28 (NPK)",
+    2: "14-35-14 (NPK)",
+    3: "20-20 (NPK)",
+    4: "DAP (Di-Ammonium Phosphate)",
+    5: "MOP (Muriate of Potash)",
+    6: "Urea"
+}
+
+# 3. User Input Fields
 col1, col2 = st.columns(2)
 with col1:
     temp = st.number_input("Temperature (°C)", min_value=0, max_value=60, value=25)
@@ -22,10 +63,8 @@ with col1:
 with col2:
     humidity = st.number_input("Humidity (%)", min_value=0, max_value=100, value=50)
 
-#Dropdown Value
-
-soil_type = st.selectbox("Select Soil Type", le_soil.classes_)
-crop_type = st.selectbox("Select Crop Type", le_crop.classes_)
+soil_selected = st.selectbox("Select Soil Type", list(soil_mapping.keys()))
+crop_selected = st.selectbox("Select Crop Type", list(crop_mapping.keys()))
 
 st.subheader("Nutrients Level")
 col3, col4, col5 = st.columns(3)
@@ -36,21 +75,40 @@ with col4:
 with col5:
     phos = st.number_input("Phosphorous (P)", min_value=0, max_value=200, value=50)
 
-# 4. Predict Button
+# 4. Prediction Button and Input Summary
 if st.button("Predict Best Fertilizer", use_container_width=True):
-    # Yahan text inputs ko model ke liye numbers mein convert kiya ja raha hai
-    soil_encoded = le_soil.transform([soil_type])[0]
-    crop_encoded = le_crop.transform([crop_type])[0]
+    soil_encoded = soil_mapping[soil_selected]
+    crop_encoded = crop_mapping[crop_selected]
     
-    # Input array banayein
     input_data = np.array([[temp, humidity, moisture, soil_encoded, crop_encoded, nitro, potas, phos]])
     
-    # Prediction karein (Yeh number return karega)
-    prediction_encoded = model.predict(input_data)
-    
-    # Number ko wapas asli naam (Text) mein convert karein
-    fertilizer_name = le_fert.inverse_transform(prediction_encoded)[0]
-    
-    st.success(f"🎉 Aapki fasal ke liye sab se behtreen fertilizer hai: **{fertilizer_name}**")
-
-    st.success(f"🎉 Aapki fasal ke liye sab se behtreen fertilizer hai: **{fertilizer_name}**")
+    try:
+        prediction_number = int(model.predict(input_data))
+        fertilizer_name = fertilizer_mapping.get(prediction_number, f"Unknown (Code: {prediction_number})")
+        
+        # 1. Prediction Result Display
+        st.success(f"🎉 Aapki fasal ke liye sab se behtreen fertilizer hai: **{fertilizer_name}**")
+        
+        # 2. User Input Summary Display (Naya Feature)
+        st.write("---")
+        st.subheader("📋 Aap Ka Diya Hua Data (Input Summary)")
+        
+        # Data ko table ki shakal mein dekhane ke liye DataFrame banayi hai
+        summary_df = pd.DataFrame({
+            "Parameters (Feautures)": [
+                "Temperature", "Humidity", "Moisture", 
+                "Soil Type", "Crop Type", 
+                "Nitrogen (N)", "Potassium (K)", "Phosphorous (P)"
+            ],
+            "Aap Ki Values": [
+                f"{temp} °C", f"{humidity} %", f"{moisture} %", 
+                soil_selected, crop_selected, 
+                f"{nitro}", f"{potas}", f"{phos}"
+            ]
+        })
+        
+        # Table show karna bina index numbers ke
+        st.table(summary_df.set_index("Parameters (Feautures)"))
+        
+    except Exception as e:
+        st.error(f"Prediction ke dauran error aya: {e}")
