@@ -3,7 +3,7 @@ import pickle
 import numpy as np
 
 #Upload Model
-with open("Fertilizer_Prediction.pkl",'rb') as f:
+with open("fertilizer_model.pkl", 'rb') as f:
     data = pickle.load(f)
 
 model = data['model']
