@@ -83,19 +83,21 @@ if st.button("Predict Best Fertilizer", use_container_width=True):
     input_data = np.array([[temp, humidity, moisture, soil_encoded, crop_encoded, nitro, potas, phos]])
     
     try:
-        prediction_number = int(model.predict(input_data))
+        # Array se pehla element nikalne ke liye [0] lagaya hai
+        prediction_array = model.predict(input_data)
+        prediction_number = int(prediction_array[0]) 
+        
         fertilizer_name = fertilizer_mapping.get(prediction_number, f"Unknown (Code: {prediction_number})")
         
         # 1. Prediction Result Display
         st.success(f"🎉 Aapki fasal ke liye sab se behtreen fertilizer hai: **{fertilizer_name}**")
         
-        # 2. User Input Summary Display (Naya Feature)
+        # 2. User Input Summary Display
         st.write("---")
         st.subheader("📋 Aap Ka Diya Hua Data (Input Summary)")
         
-        # Data ko table ki shakal mein dekhane ke liye DataFrame banayi hai
         summary_df = pd.DataFrame({
-            "Parameters (Feautures)": [
+            "Parameters (Features)": [
                 "Temperature", "Humidity", "Moisture", 
                 "Soil Type", "Crop Type", 
                 "Nitrogen (N)", "Potassium (K)", "Phosphorous (P)"
@@ -107,8 +109,7 @@ if st.button("Predict Best Fertilizer", use_container_width=True):
             ]
         })
         
-        # Table show karna bina index numbers ke
-        st.table(summary_df.set_index("Parameters (Feautures)"))
+        st.table(summary_df.set_index("Parameters (Features)"))
         
     except Exception as e:
         st.error(f"Prediction ke dauran error aya: {e}")
