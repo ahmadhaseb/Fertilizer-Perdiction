@@ -66,6 +66,7 @@ Fertilizer-Prediction-System/
 ├── .gitignore
 ├── app.py
 ├── fertilizer_model.pkl
+├── Fertilizer Prediction.csv
 ├── requirements.txt
 └── README.md
 ```
